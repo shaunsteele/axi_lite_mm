@@ -1,0 +1,13 @@
+xsim.dir/
+.*.timestamp
+dump.vcd
+*.wdb
+*.log
+*.pb
+*.jou
+*.vlt
+__pycache__
+sim_build/
+*.dat
+*.xml
+*.gtkw
