@@ -24,7 +24,9 @@ localparam int DLEN = mem.DLEN;
 localparam int ALEN = mem.ALEN;
 
 logic [ALEN-1:0] awaddr;
+logic [ALEN-1:0] araddr;
 assign awaddr = axi.awaddr[ALEN+Align:Align];
+assign araddr = axi.araddr[ALEN+Align:Align];
 
 // Align Address
 assert property (@(posedge clk) axi.ALEN % axi.SLEN == 0);
@@ -223,14 +225,46 @@ always_ff @(posedge clk) begin
   end
 end
 
-// Memory Read
+// Memory Read Enable
 always_comb begin
   mem.ren = axi.arvalid & axi.arready;
 end
 
-assign mem.raddr = axi.raddr[ALEN-1:0];
-assign axi.rvalid = mem.rvalid;
-assign axi.rdata = mem.rdata;
+// Memory Read Address
+assign mem.raddr = araddr;
+
+// Read Data Valid Latch
+always_ff @(posedge clk) begin
+  if (!rstn) begin
+    axi.rvalid <= 0;
+  end else begin
+    if (axi.rvalid) begin
+      axi.rvalid <= ~axi.rready;
+    end else begin
+      axi.rvalid <= mem.rvalid;
+    end
+  end
+end
+
+// Memory Read Data Buffer
+logic [DLEN-1:0]  rdata_buf;
+always_ff @(posedge clk) begin
+  if (!axi.rready) begin
+    rdata_buf <= mem.rdata;
+  end else begin
+    rdata_buf <= rdata_buf;
+  end
+end
+
+// Read Data Latch
+always_ff @(posedge clk) begin
+  if (axi.rready) begin
+    axi.rdata <= mem.rdata;
+  end else begin
+    axi.rdata <= rdata_buf;
+  end
+end
+
 assign axi.rresp = 2'b00;
 
 
