@@ -10,14 +10,24 @@ module axi4_lite_2_mem(
   mem_if.M        mem
 );
 
+/* Address and Parameter Control */
+localparam int SLEN = axi.SLEN;
+localparam int Align = $clog2(SLEN);
+
 initial begin
-  assert (axi.ALEN >= mem.ALEN)
-  assert (axi.DLEN == mem.DLEN)
+  assert (axi.ALEN >= mem.ALEN + Align);
+  assert (axi.DLEN == mem.DLEN);
 end
 
-localparam int ALEN = mem.ALEN;
 localparam int DLEN = mem.DLEN;
-localparam int SLEN = axi.SLEN;
+
+localparam int ALEN = mem.ALEN;
+
+logic [ALEN-1:0] awaddr;
+assign awaddr = axi.awaddr[ALEN+Align:Align];
+
+// Align Address
+assert property (@(posedge clk) axi.ALEN % axi.SLEN == 0);
 
 /* Write Channels */
 // Handshake Flags
@@ -88,7 +98,7 @@ end
 logic [ALEN-1:0]  awbuf;
 always_ff @(posedge clk) begin
   if (aw_en & ~w_en) begin
-    awbuf <= axi.awaddr[ALEN-1:0];
+    awbuf <= awaddr[ALEN-1:0];
   end else begin
     awbuf <= awbuf;
   end
@@ -120,7 +130,7 @@ end
 always_comb begin
   if (aw_en & w_en) begin
     mem.wen = 1;
-    mem.waddr = axi.awaddr;
+    mem.waddr = awaddr;
     mem.wdata = axi.wdata;
   end else if (aw_before_w & w_en) begin
     mem.wen = 1;
@@ -128,7 +138,7 @@ always_comb begin
     mem.wdata = axi.wdata;
   end else if (aw_en & w_before_aw) begin
     mem.wen = 1;
-    mem.waddr = axi.awaddr;
+    mem.waddr = awaddr;
     mem.wdata = wbuf;
   end else begin
     mem.wen = 0;
@@ -137,22 +147,66 @@ always_comb begin
   end
 end
 
-// Write Response Channel
+// Successful Write Request
+logic wreq;
+always_comb begin
+  wreq = (aw_en & w_en) | (aw_before_w & w_en) | (aw_en & w_before_aw);
+end
+
+// Write Response Queue
+logic [ALEN-1:0]  reqs;
+logic [ALEN-1:0]  reqs_next;
+always_comb begin
+  if (wreq & b_en) begin
+    reqs_next = reqs;
+  end else if (wreq) begin
+    reqs_next = {reqs[ALEN-2:0], 1};
+  end else if (b_en) begin
+    reqs_next = {0, reqs[ALEN-1:1]};
+  end else begin
+    reqs_next = reqs;
+  end
+end
+
+always_ff @(posedge clk) begin
+  if (!rstn) begin
+    reqs <= 0;
+  end else begin
+    reqs <= reqs_next;
+  end
+end
+
+// Write Response Valid
 always_ff @(posedge clk) begin
   if (!rstn) begin
     axi.bvalid <= 0;
   end else begin
-    if ((aw_en & w_en) | (aw_before_w & w_en) | (aw_en & w_before_aw)) begin
-      axi.bvalid <= 1;
-    end else if (axi.bready) begin
-      axi.bvalid <= 0;
+    if (axi.bvalid) begin
+      axi.bvalid <= &reqs_next;
     end else begin
-      axi.bvalid <= axi.bvalid;
+      axi.bvalid <= wreq;
     end
   end
 end
 
-assign axi.bresp = 2'b00;
+// Write Response Data
+localparam bit [1:0]  OKAY = 2'b00;
+localparam bit [1:0]  SLVERR = 2'b10;
+always_ff @(posedge clk) begin
+  if (!rstn) begin
+    axi.bresp <= OKAY;
+  end else begin
+    if (axi.bresp == SLVERR) begin
+      axi.bresp <= SLVERR;
+    end else begin
+      if (&reqs_next & wreq) begin
+        axi.bresp <= SLVERR;
+      end else begin
+        axi.bresp <= OKAY;
+      end
+    end
+  end
+end
 
 
 /* Read Channels */
