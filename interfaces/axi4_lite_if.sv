@@ -47,7 +47,7 @@ modport M (
   output wvalid, wdata, wstrb, input wready,
   output bready, input bvalid, bresp,
   output arvalid, araddr, arprot, input arready,
-  output rready, input rvalid, rresp
+  output rready, input rvalid, rdata, rresp
 );
 
 modport S (
@@ -56,10 +56,11 @@ modport S (
   input wvalid, wdata, wstrb, output wready,
   input bready, output bvalid, bresp,
   input arvalid, araddr, arprot, output arready,
-  input rready, output rvalid, rresp
+  input rready, output rvalid, rdata, rresp
 );
 
 // Clocking Blocks
+/*
 clocking m_drv_cb @(posedge aclk);
   default input #2 output #2;
   output awvalid;
@@ -131,5 +132,5 @@ clocking mon_cb @(posedge aclk);
   input rresp;
 endclocking
 modport MON (clocking mon_cb, input aclk, input aresetn);
-
+*/
 endinterface

@@ -24,9 +24,7 @@ localparam int DLEN = mem.DLEN;
 localparam int ALEN = mem.ALEN;
 
 logic [ALEN-1:0] awaddr;
-logic [ALEN-1:0] araddr;
-assign awaddr = axi.awaddr[ALEN+Align:Align];
-assign araddr = axi.araddr[ALEN+Align:Align];
+assign awaddr = axi.awaddr[ALEN+Align-1:Align];
 
 // Align Address
 assert property (@(posedge clk) axi.ALEN % axi.SLEN == 0);
@@ -162,9 +160,9 @@ always_comb begin
   if (wreq & b_en) begin
     reqs_next = reqs;
   end else if (wreq) begin
-    reqs_next = {reqs[ALEN-2:0], 1};
+    reqs_next = {reqs[ALEN-2:0], 1'b1};
   end else if (b_en) begin
-    reqs_next = {0, reqs[ALEN-1:1]};
+    reqs_next = {1'b0, reqs[ALEN-1:1]};
   end else begin
     reqs_next = reqs;
   end
@@ -230,8 +228,26 @@ always_comb begin
   mem.ren = axi.arvalid & axi.arready;
 end
 
+
+// Read Address Buffer
+logic [axi.ALEN-1:0] araddr_buf;
+always_ff @(posedge clk) begin
+  if (mem.ren) begin
+    araddr_buf <= axi.araddr;
+  end else begin
+    araddr_buf <= araddr_buf;
+  end
+end
+
 // Memory Read Address
-assign mem.raddr = araddr;
+always_comb begin
+  if (mem.ren) begin
+    mem.raddr = axi.araddr[ALEN+Align-1:Align];
+  end else begin
+    mem.raddr = araddr_buf[ALEN+Align-1:Align];
+  end
+end
+
 
 // Read Data Valid Latch
 always_ff @(posedge clk) begin
@@ -241,30 +257,13 @@ always_ff @(posedge clk) begin
     if (axi.rvalid) begin
       axi.rvalid <= ~axi.rready;
     end else begin
-      axi.rvalid <= mem.rvalid;
+      axi.rvalid <= mem.ren;
     end
   end
 end
 
-// Memory Read Data Buffer
-logic [DLEN-1:0]  rdata_buf;
-always_ff @(posedge clk) begin
-  if (!axi.rready) begin
-    rdata_buf <= mem.rdata;
-  end else begin
-    rdata_buf <= rdata_buf;
-  end
-end
-
 // Read Data Latch
-always_ff @(posedge clk) begin
-  if (axi.rready) begin
-    axi.rdata <= mem.rdata;
-  end else begin
-    axi.rdata <= rdata_buf;
-  end
-end
-
+assign axi.rdata = mem.rdata;
 assign axi.rresp = 2'b00;
 
 

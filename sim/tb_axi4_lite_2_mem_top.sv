@@ -1,8 +1,8 @@
-// tb_axi4_lite_2_mem.sv
+// tb_axi4_lite_2_mem_top.sv
 
 `default_nettype none
 
-module tb_axi4_lite_2_mem #(
+module tb_axi4_lite_2_mem_top #(
   parameter int AXI_ALEN  = 32,
   parameter int MEM_ALEN  = 2,
   parameter int DLEN      = 32,
@@ -39,8 +39,7 @@ module tb_axi4_lite_2_mem #(
 
   output var logic                  mem_ren,
   output var logic  [MEM_ALEN-1:0]  mem_raddr,
-  input var         [DLEN-1:0]      mem_rdata,
-  input var                         mem_rvalid
+  input var         [DLEN-1:0]      mem_rdata
 );
 
 // AXI4-Lite Interface
@@ -54,7 +53,7 @@ assign axi.awprot = 3'b000;
 assign axi.wvalid = axi_wvalid;
 assign axi_wready = axi.wready;
 assign axi.wdata = axi_wdata;
-assign axi.wstrb = axi_strb;
+assign axi.wstrb = axi_wstrb;
 assign axi_bvalid = axi.bvalid;
 assign axi.bready = axi_bready;
 assign axi_bresp = axi.bresp;
@@ -78,7 +77,6 @@ assign mem_wdata = mem.wdata;
 assign mem_ren = mem.ren;
 assign mem_raddr = mem.raddr;
 assign mem.rdata = mem_rdata;
-assign mem.rvalid = mem_rvalid;
 
 
 // DUT
