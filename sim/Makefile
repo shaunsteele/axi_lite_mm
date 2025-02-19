@@ -1,30 +1,28 @@
 # CocoTB Makefile
 
-REPO_DIR := /home/shaun/repos/axi4_lite_2_mem
+CWD = $(shell pwd)
 
-IF_DIR	:= $(REPO_DIR)/interfaces
-RTL_DIR := $(REPO_DIR)/rtl
-SIM_DIR := $(REPO_DIR)/sim
+REPO_DIR := /home/shaun/repos/axi_lite_mm
 
 SIM ?= verilator
-
-EXTRA_ARGS += -sv
-# EXTRA_ARGS += --timing
-# EXTRA_ARGS += --coverage
+TOPLEVELLANG ?= verilog
+EXTRA_ARGS += --timing
 EXTRA_ARGS += --trace --trace-structs
 
-TOPLEVELLANG ?= verilog
+VERILOG_SOURCES += $(REPO_DIR)/rtl/axi_lite_mm.sv
 
-VERILOG_SOURCES += $(IF_DIR)/mem_if.sv
-VERILOG_SOURCES += $(IF_DIR)/axi4_lite_if.sv
-VERILOG_SOURCES += $(RTL_DIR)/axi4_lite_2_mem.sv
-VERILOG_SOURCES += $(SIM_DIR)/tb_axi4_lite_2_mem_top.sv
+TOPLEVEL = axi_lite_mm
 
-TOPLEVEL = tb_axi4_lite_2_mem_top
+MODULE = tb_axi_lite_mm
 
-MODULE = tb_axi4_lite_2_mem
+COCOTB_HDL_TIMEUNIT = 1ns
+COCOTB_HDL_TIMEPRECISION = 10ps
 
 include $(shell cocotb-config --makefiles)/Makefile.sim
+
+.PHONY: lint
+lint:
+	verilator --lint-only -sv -Wall $(VERILOG_SOURCES)
 
 WAVES = dump.vcd
 
